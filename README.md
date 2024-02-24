@@ -13,12 +13,14 @@
    dotnet run
    ```
 
-# Compare time of 3 ways using Postman when update 10000 rows
+# Compare time of some ways using Postman when update 10000 rows
 
-| Property | EF basic   | EF sql raw | Dapper |
-| -------- | ---------- | ---------- | ------ |
-| Time     | 1880.86 ms | 37 ms      | 44ms   |
+| Property | EF basic   | EF sql raw | Dapper | EF core bulk extension | EF core bulk update after version 7 |
+| -------- | ---------- | ---------- | ------ | ---------------------- | ----------------------------------- |
+| Time     | 1880.86 ms | 37 ms      | 44ms   |                        | 38ms                                |
 
 # Conclusion
 
-EF sql raw ~ Dapper and them run faster than EF basic
+EF sql raw ~ Dapper ~ EF core bulk update after version 7 and them run faster than EF basic
+
+See debug console of any api to see number of roundtrip that cause difference
