@@ -30,7 +30,7 @@ app.UseHttpsRedirection();
 app.MapPut("update-salaries-by-company-basic", async (Guid companyId, ApplicationDBContext dbContext) =>
 {
     // Why save change is slow : https://code-maze.com/efcore-bulk-updates/
-    
+
     var company = await dbContext.Set<Company>()
         .Include(o => o.Employees)
         .AsSplitQuery()
@@ -107,27 +107,23 @@ app.MapPut("update-salaries-by-company-dapper", async (Guid companyId, Applicati
 app.MapPut("update-salaries-by-company-ef-core-bulk-extension",
     async (Guid companyId, ApplicationDBContext dbContext) =>
     {
-        var company = await dbContext.Set<Company>().FirstOrDefaultAsync(o => o.Id == companyId);
-        if (company is null)
-        {
-            return Results.NotFound($"Not found company with id {companyId}");
-        }
-
-        var employees = await dbContext.Set<Employee>().Where(o => o.CompanyId == companyId).ToListAsync();
-        foreach (var employee in employees)
-        {
-            employee.Salary *= 1.1m;
-        }
-        
         await using (var transaction = await dbContext.Database.BeginTransactionAsync())
         {
-            await dbContext.BulkUpdateAsync(employees);
-            company.UpdateSalaryDate = DateTime.Now;
-            await dbContext.SaveChangesAsync();
+            await dbContext.Set<Employee>()
+                .Where(o => o.CompanyId == companyId)
+                .UpdateFromQueryAsync(o => new Employee()
+                {
+                    Salary = o.Salary * 1.1m
+                });
+            await dbContext.Set<Company>().Where(o => o.Id == companyId)
+                .UpdateFromQueryAsync(o => new Company()
+                {
+                    UpdateSalaryDate = DateTime.Now
+                });
             await transaction.CommitAsync();
         }
 
-        return Results.Ok($"Updated salaries for company {company.Name}");
+        return Results.Ok($"Updated salaries for company");
     });
 
 app.MapPut("update-salaries-by-company-ef-core-bulk-after-version-7",
@@ -141,8 +137,8 @@ app.MapPut("update-salaries-by-company-ef-core-bulk-after-version-7",
 
         await using (var transaction = await dbContext.Database.BeginTransactionAsync())
         {
-            await dbContext.Set<Employee>().Where(o=>o.CompanyId == companyId)
-                .ExecuteUpdateAsync(s=>s.SetProperty(o=>o.Salary, o=>o.Salary * 1.1m));
+            await dbContext.Set<Employee>().Where(o => o.CompanyId == companyId)
+                .ExecuteUpdateAsync(s => s.SetProperty(o => o.Salary, o => o.Salary * 1.1m));
             company.UpdateSalaryDate = DateTime.Now;
             await dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
